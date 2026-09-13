@@ -2,7 +2,7 @@
  * BLOG 分层 P8:「本月用量」区块整体折叠为「更多统计」(默认收起,点击展开);
  * 图库容量 bar 保持常显,折叠状态与数据无关。
  * P10-B3:只读/黄灯提示行常显在容量 bar 下方(不再折叠,防遮挡遗漏)。
- * Q-FIX(2026-09-07)分域归一:图库降级为「存储基座迁移期参考」——统一容量口径
+ * Q-FIX(2026-09-07)分域归一:统一容量口径
  * (gallery+B2 vs 账号级存储配额)以附件管理「空间容量」条为唯一展示;
  * 本条仍按站内图库配额(plan 感知 5/50GB)做参考展示与站内硬闸提示。 */
 import { useState } from 'react'
@@ -186,7 +186,7 @@ export function GalleryStorageBar({ stats, loading, error }) {
         }}
       >
         <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#ccc' }}>
-          图库容量<span style={{ fontSize: '11px', fontWeight: 'normal', color: '#777' }}>（迁移期参考）</span>
+          图库容量
         </span>
         <span style={{ fontSize: '12px', color: '#999' }}>
           {pctLabel} 已用

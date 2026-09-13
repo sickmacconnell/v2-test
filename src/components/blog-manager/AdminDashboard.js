@@ -457,10 +457,10 @@ const GlobalStyle = () => (
     .header-actions-menu-wrap { position: relative; flex-shrink: 0; }
     .header-actions-trigger { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 40px; min-height: 40px; padding: 10px 12px; border-radius: 8px; background: #424242; border: 1px solid greenyellow; color: greenyellow; cursor: pointer; transition: background 0.15s ease, box-shadow 0.15s ease; }
     .header-actions-trigger:hover:not(:disabled) { background: #4a4a4a; box-shadow: 0 0 12px rgba(173, 255, 47, 0.2); }
-    .header-actions-trigger.is-open { background: #3a3a3e; box-shadow: 0 0 0 2px rgba(173, 255, 47, 0.35); }
     .header-actions-trigger:disabled { opacity: 0.45; cursor: not-allowed; }
-    .header-actions-trigger__chevron { display: flex; opacity: 0.85; transition: transform 0.2s ease; }
-    .header-actions-trigger.is-open .header-actions-trigger__chevron { transform: rotate(180deg); }
+    .header-actions-gear-trigger { display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; background: transparent; border: none; color: inherit; opacity: 0.5; cursor: pointer; transition: opacity 0.15s ease, background 0.15s ease; }
+    .header-actions-gear-trigger:hover:not(:disabled) { opacity: 0.9; background: rgba(255, 255, 255, 0.06); }
+    .header-actions-gear-trigger:disabled { opacity: 0.3; cursor: not-allowed; }
     .header-actions-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; padding: 6px; border-radius: 10px; background: #2a2a2e; border: 1px solid #555; box-shadow: 0 12px 32px rgba(0,0,0,0.5); z-index: 200; }
     .header-actions-menu-item { display: block; width: 100%; padding: 10px 12px; border: none; border-radius: 8px; background: transparent; color: #eee; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; transition: background 0.15s ease; }
     .header-actions-menu-item:hover:not(:disabled) { background: #3a3a3e; }
@@ -2283,23 +2283,50 @@ const CrawlerIngestPanel = ({
   );
 };
 
-/** 顶栏：绿色刷新按钮展开的操作菜单 */
-const AdminHeaderActionsMenu = ({
-  open,
-  onToggle,
-  onClose,
+/** 顶栏：刷新前台按钮（点击即刷新，无下拉） */
+const AdminRefreshButton = ({
   isThemeLoading,
   blogRefreshBusy,
   blogRefreshCooldownSec,
   onShellRefresh,
+}) => {
+  const disabled = isThemeLoading || blogRefreshBusy || blogRefreshCooldownSec > 0;
+  const title =
+    blogRefreshCooldownSec > 0
+      ? `刷新前台:更新首页、自定义页面、归档与分类/标签列表 · 冷却中（${formatRefreshCooldownHint(blogRefreshCooldownSec)}）`
+      : '刷新前台:更新首页、自定义页面、归档与分类/标签列表';
+  return (
+    <button
+      type="button"
+      className="header-actions-trigger"
+      onClick={onShellRefresh}
+      disabled={disabled}
+      aria-label="刷新前台"
+      title={title}
+    >
+      {blogRefreshBusy ? (
+        <span style={blogRefreshSpinStyle} aria-hidden />
+      ) : (
+        <Icons.Refresh />
+      )}
+    </button>
+  );
+};
+
+/** 标题右侧齿轮下拉菜单：爬虫设置 + 新手引导（占位入口） */
+const AdminGearMenu = ({
+  wrapRef,
+  open,
+  onToggle,
+  onClose,
+  isThemeLoading,
   crawlerIngestBusy,
   crawlerIngestProgress,
   crawlerIngestConfigured,
   crawlerIngestSummary,
   onOpenIngestList,
+  onShowOnboarding,
 }) => {
-  const shellRefreshDisabled =
-    isThemeLoading || blogRefreshBusy || blogRefreshCooldownSec > 0;
   const crawlerIngestDisabled = isThemeLoading || !crawlerIngestConfigured;
   const crawlerSessionDone =
     crawlerIngestProgress
@@ -2313,42 +2340,19 @@ const AdminHeaderActionsMenu = ({
   };
 
   return (
-    <div className="header-actions-menu-wrap">
+    <div className="header-actions-menu-wrap" ref={wrapRef}>
       <button
         type="button"
-        className={`header-actions-trigger${open ? ' is-open' : ''}`}
+        className="header-actions-gear-trigger"
         onClick={onToggle}
         disabled={isThemeLoading}
         aria-expanded={open}
         aria-haspopup="menu"
-        title="更多操作：刷新前台、爬虫入库等"
       >
-        {blogRefreshBusy ? (
-          <span style={blogRefreshSpinStyle} aria-hidden />
-        ) : (
-          <Icons.Refresh />
-        )}
-        <span className="header-actions-trigger__chevron" aria-hidden>
-          <Icons.ChevronDown />
-        </span>
+        <Icons.Settings />
       </button>
       {open ? (
         <div className="header-actions-menu" role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            className="header-actions-menu-item"
-            disabled={shellRefreshDisabled}
-            onClick={() => runAndClose(onShellRefresh)}
-            title="刷新首页、自定义页面、归档与分类/标签列表（不重建全部文章内页）"
-          >
-            刷新前台
-            {blogRefreshCooldownSec > 0 ? (
-              <span className="header-actions-menu-item__hint">
-                冷却中（{formatRefreshCooldownHint(blogRefreshCooldownSec)}）
-              </span>
-            ) : null}
-          </button>
           <button
             type="button"
             role="menuitem"
@@ -2372,7 +2376,7 @@ const AdminHeaderActionsMenu = ({
                 </span>
               </>
             ) : (
-              '爬虫管理'
+              '爬虫设置'
             )}
             {crawlerIngestConfigured && crawlerIngestSummary && !crawlerIngestBusy ? (
               <span className="header-actions-menu-item__hint">
@@ -2381,6 +2385,14 @@ const AdminHeaderActionsMenu = ({
                 {crawlerIngestSummary.failed ?? 0}
               </span>
             ) : null}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="header-actions-menu-item"
+            onClick={() => runAndClose(onShowOnboarding)}
+          >
+            新手引导
           </button>
         </div>
       ) : null}
@@ -4384,6 +4396,10 @@ const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState({ title: '', slug: '', excerpt: '', content: '', category: '', tags: '', cover: '', status: 'Published', type: 'Post', date: '', download: '', download_size: '', download_count: '', article_password: '', linked_product_sku: '', linked_product_url: '', linked_product_price: '' });
   const [currentId, setCurrentId] = useState(null);
   const [siteTitle, setSiteTitle] = useState('PROBLOG');
+  const [siteTitleEditing, setSiteTitleEditing] = useState(false);
+  const [siteTitleDraft, setSiteTitleDraft] = useState('');
+  const [siteTitleSaving, setSiteTitleSaving] = useState(false);
+  const siteTitleEditingBaseRef = useRef('');
   const [navIdx, setNavIdx] = useState(1); 
   const [expandedStep, setExpandedStep] = useState(1);
   const [editorBlocks, setEditorBlocks] = useState([]);
@@ -7387,8 +7403,28 @@ const [mounted, setMounted] = useState(false);
     setView('list');
   };
 
-  const updateSiteTitle = async () => {
-    // 点齿轮先查三日冷却，命中则直接提示，不弹输入框
+  const enterSiteTitleEditing = () => {
+    if (siteTitleEditing || siteTitleSaving) return;
+    siteTitleEditingBaseRef.current = siteTitle || '';
+    setSiteTitleDraft(siteTitle || '');
+    setSiteTitleEditing(true);
+  };
+
+  const exitSiteTitleEditing = () => {
+    if (siteTitleSaving) return;
+    setSiteTitleEditing(false);
+    setSiteTitleDraft('');
+  };
+
+  const submitSiteTitle = async (rawTitle) => {
+    const newTitle = String(rawTitle || '').trim();
+    // 空值或与进入编辑时的快照相同：直接退出编辑态，不发请求
+    if (!newTitle || newTitle === siteTitleEditingBaseRef.current) {
+      exitSiteTitleEditing();
+      return;
+    }
+
+    // 提交时查三日冷却配额，命中则留在编辑态（进入编辑态不查）
     try {
       const qRes = await fetch('/api/admin/config');
       const qData = await qRes.json().catch(() => null);
@@ -7400,49 +7436,69 @@ const [mounted, setMounted] = useState(false);
       /* 冷却查询失败不阻断，交由后端兜底 */
     }
 
-    const newTitle = prompt("请输入新的网站标题:", siteTitle);
-    if (newTitle && newTitle !== siteTitle) {
-      setLoading(true);
-      setSavePhase('siteTitle');
-      try {
-        const res = await fetch('/api/admin/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: newTitle }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data?.success) {
-          alert('更改网站名称失败：' + (data?.error || res.status));
-          return;
-        }
-        setSiteTitle(newTitle);
-
-        // 首页立即刷新（快速标记，不预热等待）
-        await triggerContentRevalidation({
-          scope: 'batch',
-          paths: ['/'],
-          freshTheme: true,
-          clearCaches: true,
-        });
-
-        // 其余页面入队后台异步刷新，不阻塞遮罩
-        void triggerContentRevalidation({
-          scope: 'site-config',
-          queue: true,
-          queuePriority: 0,
-          queueDelayMs: 30000,
-          queueReason: 'site-title',
-          clearCaches: true,
-        }).catch((e) => console.warn('全站标题刷新入队失败', e));
-
-        showAdminToast('网站名称已更改，前台页面正在陆续刷新');
-      } catch (e) {
-        alert('更改网站名称失败：' + (e.message || '未知错误'));
-      } finally {
-        setLoading(false);
-        setSavePhase('');
+    setLoading(true);
+    setSavePhase('siteTitle');
+    setSiteTitleSaving(true);
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        alert('更改网站名称失败：' + (data?.error || res.status));
+        return;
       }
+      setSiteTitle(newTitle);
+      siteTitleEditingBaseRef.current = newTitle;
+      setSiteTitleEditing(false);
+      setSiteTitleDraft('');
+
+      // 首页立即刷新（快速标记，不预热等待）
+      await triggerContentRevalidation({
+        scope: 'batch',
+        paths: ['/'],
+        freshTheme: true,
+        clearCaches: true,
+      });
+
+      // 其余页面入队后台异步刷新，不阻塞遮罩
+      void triggerContentRevalidation({
+        scope: 'site-config',
+        queue: true,
+        queuePriority: 0,
+        queueDelayMs: 30000,
+        queueReason: 'site-title',
+        clearCaches: true,
+      }).catch((e) => console.warn('全站标题刷新入队失败', e));
+
+      showAdminToast('网站名称已更改，前台页面正在陆续刷新');
+    } catch (e) {
+      alert('更改网站名称失败：' + (e.message || '未知错误'));
+    } finally {
+      setLoading(false);
+      setSavePhase('');
+      setSiteTitleSaving(false);
     }
+  };
+
+  const submitSiteTitleFromDraft = () => {
+    if (!siteTitleEditing || siteTitleSaving) return;
+    void submitSiteTitle(siteTitleDraft);
+  };
+
+  const handleSiteTitleInputKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      exitSiteTitleEditing();
+      return;
+    }
+    if (e.key !== 'Enter') return;
+    // 中文输入法合成期间的 Enter 不触发保存
+    if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    submitSiteTitleFromDraft();
   };
 
   const handleManualDeploy = () => {
@@ -8630,16 +8686,60 @@ const [mounted, setMounted] = useState(false);
            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
              {(view === 'list' || view === 'recycle') && <SearchInput value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />}
              <div style={{display:'flex', flexDirection:'column', justifyContent:'center'}}>
-                 <div style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '1px', display:'flex', alignItems:'center', gap:'10px' }}>
-                    {siteTitle}
-                    {/* P18FREEPRO: 标识色(专业版金VIP/免费版浅绿,用户2026-08-30) */}
-                    {sitePlan === 'pro' ? (
-                      <span style={{fontSize:'10.5px', padding:'2px 8px', borderRadius:'999px', background:'rgba(251,191,36,0.12)', color:'#fbbf24', border:'1px solid rgba(251,191,36,0.5)', fontWeight:'normal', whiteSpace:'nowrap'}}>VIP · 专业版</span>
-                    ) : sitePlan === 'free' ? (
-                      <span style={{fontSize:'10.5px', padding:'2px 8px', borderRadius:'999px', background:'rgba(173,255,47,0.10)', color:'#9acd32', border:'1px solid rgba(173,255,47,0.4)', fontWeight:'normal', whiteSpace:'nowrap'}}>免费版</span>
-                    ) : null}
-                    <span onClick={updateSiteTitle} style={{cursor:'pointer', opacity:0.5}} title="修改网站标题"><Icons.Settings /></span>
-                 </div>
+                  <div style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '1px', display:'flex', alignItems:'center', gap:'10px' }}>
+                     {siteTitleEditing ? (
+                       <>
+                         <input
+                           autoFocus
+                           className="glow-input"
+                           aria-label="网站标题"
+                           value={siteTitleDraft}
+                           size={Math.max(16, (siteTitleDraft || '').length + 2)}
+                           style={{ width: 'auto', minWidth: 200, maxWidth: 560, flexShrink: 0, fontSize: '18px', fontWeight: '800', padding: '6px 10px', letterSpacing: '0.5px' }}
+                           onFocus={(e) => { const len = e.target.value.length; try { e.target.setSelectionRange(len, len); } catch (err) {} }}
+                           onChange={(e) => setSiteTitleDraft(e.target.value)}
+                           onKeyDown={handleSiteTitleInputKeyDown}
+                         />
+                         <button
+                           type="button"
+                           onClick={submitSiteTitleFromDraft}
+                           disabled={siteTitleSaving}
+                           style={{ flexShrink: 0, background: '#fff', color: '#111', border: 'none', padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: siteTitleSaving ? 'not-allowed' : 'pointer', opacity: siteTitleSaving ? 0.6 : 1 }}
+                         >
+                           保存修改
+                         </button>
+                         <button
+                           type="button"
+                           onClick={exitSiteTitleEditing}
+                           disabled={siteTitleSaving}
+                           style={{ flexShrink: 0, background: '#2a2a2e', color: '#ccc', border: '1px solid #555', padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: siteTitleSaving ? 'not-allowed' : 'pointer' }}
+                         >
+                           取消
+                         </button>
+                       </>
+                     ) : (
+                       <span onClick={enterSiteTitleEditing} style={{cursor:'pointer'}} title="点击修改网站名称">{siteTitle}</span>
+                     )}
+                     {/* P18FREEPRO: 标识色(专业版金VIP/免费版浅绿,用户2026-08-30) */}
+                     {sitePlan === 'pro' ? (
+                       <span style={{fontSize:'10.5px', padding:'2px 8px', borderRadius:'999px', background:'rgba(251,191,36,0.12)', color:'#fbbf24', border:'1px solid rgba(251,191,36,0.5)', fontWeight:'normal', whiteSpace:'nowrap'}}>VIP · 专业版</span>
+                     ) : sitePlan === 'free' ? (
+                       <span style={{fontSize:'10.5px', padding:'2px 8px', borderRadius:'999px', background:'rgba(173,255,47,0.10)', color:'#9acd32', border:'1px solid rgba(173,255,47,0.4)', fontWeight:'normal', whiteSpace:'nowrap'}}>免费版</span>
+                     ) : null}
+                     <AdminGearMenu
+                       wrapRef={headerActionsMenuRef}
+                       open={headerActionsMenuOpen}
+                       onToggle={() => setHeaderActionsMenuOpen((v) => !v)}
+                       onClose={() => setHeaderActionsMenuOpen(false)}
+                       isThemeLoading={isThemeLoading}
+                       crawlerIngestBusy={crawlerIngestBusy}
+                       crawlerIngestProgress={crawlerIngestProgress}
+                       crawlerIngestConfigured={crawlerIngestConfigured}
+                       crawlerIngestSummary={crawlerIngestSummary}
+                       onOpenIngestList={openCrawlerIngestView}
+                       onShowOnboarding={() => showAdminToast('新手引导即将上线')}
+                     />
+                  </div>
              </div>
            </div>
            
@@ -8654,22 +8754,12 @@ const [mounted, setMounted] = useState(false);
                   草稿箱
                 </button>
                )}
-               <div ref={headerActionsMenuRef}>
-               <AdminHeaderActionsMenu
-                 open={headerActionsMenuOpen}
-                 onToggle={() => setHeaderActionsMenuOpen((v) => !v)}
-                 onClose={() => setHeaderActionsMenuOpen(false)}
-                 isThemeLoading={isThemeLoading}
-                 blogRefreshBusy={blogRefreshBusy}
-                 blogRefreshCooldownSec={blogRefreshCooldownSec}
+                <AdminRefreshButton
+                  isThemeLoading={isThemeLoading}
+                  blogRefreshBusy={blogRefreshBusy}
+                  blogRefreshCooldownSec={blogRefreshCooldownSec}
                   onShellRefresh={handleManualDeploy}
-                  crawlerIngestBusy={crawlerIngestBusy}
-                 crawlerIngestProgress={crawlerIngestProgress}
-                 crawlerIngestConfigured={crawlerIngestConfigured}
-                 crawlerIngestSummary={crawlerIngestSummary}
-                 onOpenIngestList={openCrawlerIngestView}
-               />
-             </div>
+                />
               {view === 'list' ? (
                 <AnimatedBtn text="发布新内容" onClick={handleCreate} />
               ) : (
